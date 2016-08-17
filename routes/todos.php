@@ -26,18 +26,22 @@ use League\Fractal\Resource\Item;
 use League\Fractal\Resource\Collection;
 use League\Fractal\Serializer\DataArraySerializer;
 
-$app->get("/todos", function ($request, $response, $arguments) {
+$app->get('/todos', function ($request, $response, $arguments) {
 
     /* Check if token has needed scope. */
-    if (false === $this->token->hasScope(["todo.all", "todo.list"])) {
-        throw new ForbiddenException("Token not allowed to list todos.", 403);
+    if (false === $this->token->hasScope(['todo.all', 'todo.list'])) {
+        throw new ForbiddenException('Token not allowed to list todos.', 403);
     }
 
     /* Use ETag and date from Todo with most recent update. */
-    $first = $this->spot->mapper("App\Todo")
+    $first = $this->spot->mapper('App\Todo')
         ->all()
-        ->order(["updated_at" => "DESC"])
+        ->order(['updated_at' => 'DESC'])
         ->first();
+
+    if ( ! $first) {
+        throw new NotFoundException('Empty.', 404);
+    }
 
     /* Add Last-Modified and ETag headers to response. */
     $response = $this->cache->withEtag($response, $first->etag());
@@ -50,9 +54,9 @@ $app->get("/todos", function ($request, $response, $arguments) {
         return $response->withStatus(304);
     }
 
-    $todos = $this->spot->mapper("App\Todo")
+    $todos = $this->spot->mapper('App\Todo')
         ->all()
-        ->order(["updated_at" => "DESC"]);
+        ->order(['updated_at' => 'DESC']);
 
     /* Serialize the response data. */
     $fractal = new Manager();
@@ -61,21 +65,21 @@ $app->get("/todos", function ($request, $response, $arguments) {
     $data = $fractal->createData($resource)->toArray();
 
     return $response->withStatus(200)
-        ->withHeader("Content-Type", "application/json")
+        ->withHeader('Content-Type', 'application/json')
         ->write(json_encode($data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
 });
 
-$app->post("/todos", function ($request, $response, $arguments) {
+$app->post('/todos', function ($request, $response, $arguments) {
 
     /* Check if token has needed scope. */
-    if (false === $this->token->hasScope(["todo.all", "todo.create"])) {
-        throw new ForbiddenException("Token not allowed to create todos.", 403);
+    if (false === $this->token->hasScope(['todo.all', 'todo.create'])) {
+        throw new ForbiddenException('Token not allowed to create todos.', 403);
     }
 
     $body = $request->getParsedBody();
 
     $todo = new Todo($body);
-    $this->spot->mapper("App\Todo")->save($todo);
+    $this->spot->mapper('App\Todo')->save($todo);
 
     /* Add Last-Modified and ETag headers to response. */
     $response = $this->cache->withEtag($response, $todo->etag());
@@ -86,27 +90,27 @@ $app->post("/todos", function ($request, $response, $arguments) {
     $fractal->setSerializer(new DataArraySerializer);
     $resource = new Item($todo, new TodoTransformer);
     $data = $fractal->createData($resource)->toArray();
-    $data["status"] = "ok";
-    $data["message"] = "New todo created";
+    $data['status'] = 'ok';
+    $data['message'] = 'New todo created';
 
     return $response->withStatus(201)
-        ->withHeader("Content-Type", "application/json")
-        ->withHeader("Location", $data["data"]["links"]["self"])
+        ->withHeader('Content-Type', 'application/json')
+        ->withHeader('Location', $data['data']['links']['self'])
         ->write(json_encode($data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
 });
 
-$app->get("/todos/{uid}", function ($request, $response, $arguments) {
+$app->get('/todos/{uid}', function ($request, $response, $arguments) {
 
     /* Check if token has needed scope. */
-    if (false === $this->token->hasScope(["todo.all", "todo.read"])) {
-        throw new ForbiddenException("Token not allowed to list todos.", 403);
+    if (false === $this->token->hasScope(['todo.all', 'todo.read'])) {
+        throw new ForbiddenException('Token not allowed to list todos.', 403);
     }
 
     /* Load existing todo using provided uid */
-    if (false === $todo = $this->spot->mapper("App\Todo")->first([
-        "uid" => $arguments["uid"]
+    if (false === $todo = $this->spot->mapper('App\Todo')->first([
+        'uid' => $arguments['uid']
     ])) {
-        throw new NotFoundException("Todo not found.", 404);
+        throw new NotFoundException('Todo not found.', 404);
     };
 
     /* Add Last-Modified and ETag headers to response. */
@@ -127,38 +131,38 @@ $app->get("/todos/{uid}", function ($request, $response, $arguments) {
     $data = $fractal->createData($resource)->toArray();
 
     return $response->withStatus(200)
-        ->withHeader("Content-Type", "application/json")
+        ->withHeader('Content-Type', 'application/json')
         ->write(json_encode($data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
 });
 
-$app->patch("/todos/{uid}", function ($request, $response, $arguments) {
+$app->patch('/todos/{uid}', function ($request, $response, $arguments) {
 
     /* Check if token has needed scope. */
-    if (false === $this->token->hasScope(["todo.all", "todo.update"])) {
-        throw new ForbiddenException("Token not allowed to update todos.", 403);
+    if (false === $this->token->hasScope(['todo.all', 'todo.update'])) {
+        throw new ForbiddenException('Token not allowed to update todos.', 403);
     }
 
     /* Load existing todo using provided uid */
-    if (false === $todo = $this->spot->mapper("App\Todo")->first([
-        "uid" => $arguments["uid"]
+    if (false === $todo = $this->spot->mapper('App\Todo')->first([
+        'uid' => $arguments['uid']
     ])) {
-        throw new NotFoundException("Todo not found.", 404);
+        throw new NotFoundException('Todo not found.', 404);
     };
 
     /* PATCH requires If-Unmodified-Since or If-Match request header to be present. */
     if (false === $this->cache->hasStateValidator($request)) {
-        throw new PreconditionRequiredException("PATCH request is required to be conditional.", 428);
+        throw new PreconditionRequiredException('PATCH request is required to be conditional.', 428);
     }
 
     /* If-Unmodified-Since and If-Match request header handling. If in the meanwhile  */
     /* someone has modified the todo respond with 412 Precondition Failed. */
     if (false === $this->cache->hasCurrentState($request, $todo->etag(), $todo->timestamp())) {
-        throw new PreconditionFailedException("Todo has been modified.", 412);
+        throw new PreconditionFailedException('Todo has been modified.', 412);
     }
 
     $body = $request->getParsedBody();
     $todo->data($body);
-    $this->spot->mapper("App\Todo")->save($todo);
+    $this->spot->mapper('App\Todo')->save($todo);
 
     /* Add Last-Modified and ETag headers to response. */
     $response = $this->cache->withEtag($response, $todo->etag());
@@ -168,37 +172,37 @@ $app->patch("/todos/{uid}", function ($request, $response, $arguments) {
     $fractal->setSerializer(new DataArraySerializer);
     $resource = new Item($todo, new TodoTransformer);
     $data = $fractal->createData($resource)->toArray();
-    $data["status"] = "ok";
-    $data["message"] = "Todo updated";
+    $data['status'] = 'ok';
+    $data['message'] = 'Todo updated';
 
     return $response->withStatus(200)
-        ->withHeader("Content-Type", "application/json")
+        ->withHeader('Content-Type', 'application/json')
         ->write(json_encode($data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
 });
 
-$app->put("/todos/{uid}", function ($request, $response, $arguments) {
+$app->put('/todos/{uid}', function ($request, $response, $arguments) {
 
     /* Check if token has needed scope. */
-    if (false === $this->token->hasScope(["todo.all", "todo.update"])) {
-        throw new ForbiddenException("Token not allowed to update todos.", 403);
+    if (false === $this->token->hasScope(['todo.all', 'todo.update'])) {
+        throw new ForbiddenException('Token not allowed to update todos.', 403);
     }
 
     /* Load existing todo using provided uid */
-    if (false === $todo = $this->spot->mapper("App\Todo")->first([
-        "uid" => $arguments["uid"]
+    if (false === $todo = $this->spot->mapper('App\Todo')->first([
+        'uid' => $arguments['uid']
     ])) {
-        throw new NotFoundException("Todo not found.", 404);
+        throw new NotFoundException('Todo not found.', 404);
     };
 
     /* PUT requires If-Unmodified-Since or If-Match request header to be present. */
     if (false === $this->cache->hasStateValidator($request)) {
-        throw new PreconditionRequiredException("PUT request is required to be conditional.", 428);
+        throw new PreconditionRequiredException('PUT request is required to be conditional.', 428);
     }
 
     /* If-Unmodified-Since and If-Match request header handling. If in the meanwhile  */
     /* someone has modified the todo respond with 412 Precondition Failed. */
     if (false === $this->cache->hasCurrentState($request, $todo->etag(), $todo->timestamp())) {
-        throw new PreconditionFailedException("Todo has been modified.", 412);
+        throw new PreconditionFailedException('Todo has been modified.', 412);
     }
 
     $body = $request->getParsedBody();
@@ -207,7 +211,7 @@ $app->put("/todos/{uid}", function ($request, $response, $arguments) {
     /* missing set them to default values by clearing the todo object first. */
     $todo->clear();
     $todo->data($body);
-    $this->spot->mapper("App\Todo")->save($todo);
+    $this->spot->mapper('App\Todo')->save($todo);
 
     /* Add Last-Modified and ETag headers to response. */
     $response = $this->cache->withEtag($response, $todo->etag());
@@ -217,34 +221,34 @@ $app->put("/todos/{uid}", function ($request, $response, $arguments) {
     $fractal->setSerializer(new DataArraySerializer);
     $resource = new Item($todo, new TodoTransformer);
     $data = $fractal->createData($resource)->toArray();
-    $data["status"] = "ok";
-    $data["message"] = "Todo updated";
+    $data['status'] = 'ok';
+    $data['message'] = 'Todo updated';
 
     return $response->withStatus(200)
-        ->withHeader("Content-Type", "application/json")
+        ->withHeader('Content-Type', 'application/json')
         ->write(json_encode($data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
 });
 
-$app->delete("/todos/{uid}", function ($request, $response, $arguments) {
+$app->delete('/todos/{uid}', function ($request, $response, $arguments) {
 
     /* Check if token has needed scope. */
-    if (false === $this->token->hasScope(["todo.all", "todo.delete"])) {
-        throw new ForbiddenException("Token not allowed to delete todos.", 403);
+    if (false === $this->token->hasScope(['todo.all', 'todo.delete'])) {
+        throw new ForbiddenException('Token not allowed to delete todos.', 403);
     }
 
     /* Load existing todo using provided uid */
-    if (false === $todo = $this->spot->mapper("App\Todo")->first([
-        "uid" => $arguments["uid"]
+    if (false === $todo = $this->spot->mapper('App\Todo')->first([
+        'uid' => $arguments['uid']
     ])) {
-        throw new NotFoundException("Todo not found.", 404);
+        throw new NotFoundException('Todo not found.', 404);
     };
 
-    $this->spot->mapper("App\Todo")->delete($todo);
+    $this->spot->mapper('App\Todo')->delete($todo);
 
-    $data["status"] = "ok";
-    $data["message"] = "Todo deleted";
+    $data['status'] = 'ok';
+    $data['message'] = 'Todo deleted';
 
     return $response->withStatus(200)
-        ->withHeader("Content-Type", "application/json")
+        ->withHeader('Content-Type', 'application/json')
         ->write(json_encode($data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
 });

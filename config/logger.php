@@ -19,22 +19,17 @@ use Monolog\Handler\StreamHandler;
 use Monolog\Handler\NullHandler;
 use Monolog\Formatter\LineFormatter;
 
-date_default_timezone_set("UTC");
+date_default_timezone_set('UTC');
 
 $container = $app->getContainer();
 
-$container["logger"] = function ($container) {
-    $logger = new Logger("slim");
-
-    $formatter = new LineFormatter(
-        "[%datetime%] [%level_name%]: %message% %context%\n",
-        null,
-        true,
-        true
-    );
+$container['logger'] = function ($container) {
+    
+    $logger = new Logger('slim');
+    $formatter = new LineFormatter("[%datetime%] [%level_name%]: %message% %context%\n", null, true, true);
 
     /* Log to timestamped files */
-    $rotating = new RotatingFileHandler(__DIR__ . "/../logs/slim.log", 0, Logger::DEBUG);
+    $rotating = new RotatingFileHandler(__DIR__ . '/../logs/slim.log', 0, Logger::DEBUG);
     $rotating->setFormatter($formatter);
     $logger->pushHandler($rotating);
 
